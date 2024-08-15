@@ -1,0 +1,722 @@
+---
+title: Analyse des données
+subtitle: 1. Importation/Exportation (IO)
+author: Philippe Vanden Eeckaut
+date: today
+description: Entrées et sorties dans R
+format:
+   typst: 
+      number-sections: true
+      papersize: a4
+   html:
+      code-fold: true
+      code-tools: true
+---
+
+<!--# Spécification des options -->
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Importation/Exportation (IO)
+
+## Principes
+
+La lecture de données se réalise de diverses manières:
+
+-   Données internes de R (importation)
+    -   Depuis les packages.
+-   Données externes de R (importation/exportation)
+    -   Données compressées
+        -   Format propriétaire de R (.rda/.rds)
+        -   Format ouvert (.feather/.parquet)
+    -   Données au format texte
+    -   Fichiers textes formatés (.csv)
+    -   Données au format d'autres applications
+    -   Fichiers de tableurs (.xls,.xlsx)
+    -   fichiers statistiques (sas,spss,....=)
+
+## Packages
+
+On va à partir de cette session utiliser des ***packages***. Pour utiliser
+un package deux opérations sont nécessaires:
+
+-   *Installer le package*:
+
+    -   La première opération consiste à récupérer le package sur un
+        serveur. Un serveur est toujours utilisé par défaut dans
+        Rstudio.
+    -   Pour vérifier le serveur utilisé il faut aller voir la section
+        package dans les préférence de Rstudio.
+    -   L'installation d'un package se fait soit par l'intetface de
+        Rstudio soit dans la fenêtre 'sud est ' de Rstudio et l'onglet
+        package avec Install soit par l'instruction
+        `install.packages()`. Il sera alors présent sur la machine (il
+        est disponible dans la liste de la fenêtre package de Rstudio)
+
+-   *Charger le package*:
+
+    -   Pour utiliser le package durant une session de Rstudio il est
+        nécessaire de charger le package par la commande `library()`.
+    -   Dans la fenêtre `sud-est` à l'onglet `Packages` on dispose de la
+        liste des packages disponible sur la machine et ceux chargés
+        seront cochés. (Certains packages sont toujoutrs disponibles:
+        base,datasets,datasets,grDevices,methods,utils )
+
+Pour simplifier l'ensemble du processus, il est plus facile réaliser les
+deux opérations en une fois avec les instructions ci-dessous
+
+```{r packages,comment=">",message=FALSE,warning=FALSE}
+Mes_packages = c('rio',
+                 'openxlsx','readxl',
+                 'feather','arrow',
+                 'data.table',
+                 'here',
+                 'rbenchmark','fakir')        
+# Liste des packages nécessaires
+for(p in Mes_packages){                                  
+  if(!require(p,character.only = TRUE)) 
+    install.packages(p,repos = "http://cran.us.r-project.org")       
+  # si le package est absent on l'installe
+  library(p,character.only = TRUE)                              
+  # On charge ensuite tous les packages
+}
+```
+
+## Données internes
+
+La manière la plus simple est de lire les données incluses directement
+dans un package. Au départ une ensemble de packages est déjà chargé dans
+Rstudio. Ainsi par exemple, nous avons le package `datasets`qui comporte
+de nombreuses données qui sont visible avec la fonction \`data()'
+
+```{r data,exercise=TRUE,comment=">",echo=TRUE}
+dataset <- data(package="datasets")  # Lecture de la liste
+head(dataset$results[,3:4])          # Affichage des 6 premiers
+```
+
+Si nous avons besoin de données présentes dans un package précis, il est
+nécessaire de le charger au préalable.
+
+```{r plm_install,exercise=TRUE,comment=">"}
+install.packages("plm",repos = "http://cran.us.r-project.org")
+```
+
+Par la même commande `data(package=<package>)` il est possible de
+visualiser les données de ce package. Les données sont visibles
+uniquement dans une fenêtre de Rstudio.
+
+```{r plm_data,exercise=TRUE,comment=">"}
+data(package="plm")  # Liste des données disponibles
+```
+
+```         
+Data sets in package ‘plm’:
+
+Cigar                 Cigarette Consumption
+Crime                 Crime in North Carolina
+EmplUK                Employment and Wages in the United Kingdom
+Gasoline              Gasoline Consumption
+Grunfeld              Grunfeld's Investment Data
+Hedonic               Hedonic Prices of Census Tracts in the
+                      Boston Area
+LaborSupply           Wages and Hours Worked
+Males                 Wages and Education of Young Males
+Parity                Purchasing Power Parity and other parity
+                      relationships
+Produc                US States Production
+RiceFarms             Production of Rice in Indonesia
+Snmesp                Employment and Wages in Spain
+SumHes                The Penn World Table, v. 5
+Wages                 Panel Data of Individual Wages
+```
+
+Pour nos besoins nous utiliserons l'ensemble de données "Wages". Ces
+données regroupent des informations sur une cohorte de 595 personnes qui
+sont collectées aux Etats Unis annuellement entre 1976 et 1982 soit 4165
+observations.
+
+```{r wages_install,exercise=TRUE,comment=">"}
+data(Wages,package="plm") # Lecture du fichier "Wages"
+head(Wages,n=7)           # Affichage des 6 premières lignes
+```
+
+Une fois les données lues, il est utile de connaitre la description de
+ces données. Une possibilité est d'aller dans l'aide de R et d'afficher
+les informations disponibles:
+
+```         
+Wages {plm} R Documentation
+Panel Data of Individual Wages
+Description
+A panel of 595 individuals from 1976 to 1982, taken from the Panel Study of Income Dynamics (PSID).
+
+The data are organized as a stacked time series/balanced panel, see Examples on how to convert to a pdata.frame.
+
+Format
+A data frame containing:
+
+exp       years of full-time work experience.
+wks       weeks worked.
+bluecol   blue collar?
+ind       works in a manufacturing industry?
+south     resides in the south?
+smsa      resides in a standard metropolitan statistical area?
+married   married?
+sex       a factor with levels "male" and "female"
+union     individual's wage set by a union contract?
+ed        years of education.
+black     is the individual black?
+lwage     logarithm of wage.
+
+Details
+total number of observations : 4165
+
+observation : individuals
+
+country : United States
+
+Source
+Online complements to Baltagi (2001):
+
+https://www.wiley.com/legacy/wileychi/baltagi/
+
+Online complements to Baltagi (2013):
+
+https://bcs.wiley.com/he-bcs/Books?action=resource&bcsId=4338&itemId=1118672321&resourceId=13452
+
+References
+Baltagi BH (2001). Econometric Analysis of Panel Data, 3rd edition. John Wiley and Sons ltd.
+
+Baltagi BH (2013). Econometric Analysis of Panel Data, 5th edition. John Wiley and Sons ltd.
+
+Cornwell C, Rupert P (1988). “Efficient Estimation With Panel Data: an Empirical Comparison of Instrumental Variables Estimators.” Journal of Applied Econometrics, 3, 149–155.
+
+Examples
+Run examples
+
+# data set 'Wages' is organized as a stacked time series/balanced panel
+data("Wages", package = "plm")
+Wag <- pdata.frame(Wages, index=595)
+```
+
+Il est ensuite possible de régarder la description de ces données par
+l'instruction `str()`
+
+```{r wages1,exercise=TRUE,comment=">"}
+str(Wages)            # Affichage de la description
+```
+
+Nous allons regarder plus spécifiquement les variables suivantes:
+
+| Variable | type   | Définition                         |
+|----------|--------|------------------------------------|
+| exp      | int    | années d'expériences (plein temps) |
+| bluecol  | Factor | ouvrier ? (yes,no)                 |
+| sex      | Factor | sexe ? (male,female)               |
+| ed       | int    | années d'étude                     |
+| lwage    | num    | log du salaire                     |
+
+### Exercice
+
+Nous allons sélectionner un sous-ensemble des 100 ouvriers avec plus de
+10 ans pour l'expérience et moins de 10 ans pour les études en 1980 et classer le résultat selon le salaire décroissant.La table contiendra les variables suivante: id,sex,exp,ed,lwage.
+
+```{r wages_s,exercise=TRUE,comment=">"}
+# 1. Obtenir les informations manquantes
+#    -----------------------------------
+# Technique manuelle basée sur rep()
+head(Wages,7)
+Wages_p <- Wages
+Wages_p$time <- rep(seq(1:7),595)
+Wages_p$id <- rep(1:595,each=7)
+# 2. Réaliser le filtre
+#    ------------------
+Wages_s <- subset(Wages_p, 
+                  bluecol == "yes" & exp >=10 & ed < 10 & time==5 , 
+                  select = c(id,sex,exp,ed,lwage))
+Wages_s <- head(Wages_s[order(Wages_s$lwage,decreasing=TRUE),],25)
+str(Wages_s)
+Wages_s
+```
+
+## Données externes
+
+L'activité la plus régulière en cas d'analyse de données sera de lire et
+d'écrire des données de ou vers des ressources extérieures à R. Il
+existe de très nombreux formats possibles. Dans le cadre de ce cours
+nous allons insister sur les catégories suivantes
+
+| Format        | Caractéristiques     | Exemple           |
+|---------------|----------------------|-------------------|
+| Compressées R | I/O uniquement par R | .RData .rda       |
+| Compressées   | I/O universel        | .parquer .feather |
+| Textes        | I/O universel        | .csv,...          |
+| Spécifiques   | I/O spécifique       | .xlsx,...         |
+
+De nombreux packages sont nécessaires pour convertir les différents
+formats possibles. Un package `rio` regroupe tous ces packages sous une
+interface commune
+
+### Données Compressés
+
+Afin de gagner en efficacité, les données peuvent etre compressés selon un algorithme choisi (zip,...). Nous allons distinguer deux possibiliés, soit les données sont lisibles uniquement par le créateur des données (dans notre cas R), soit les données sont lisibles de manière universelle par un format reconnu nativement au m
+
+#### Fichiers propriétaires R: .RData,.rda
+
+
+Nous examinerons les fichiers suivants:
+
+| Format             | Extension    | Importation (Package) | Exportation (Package) | rio ?   |
+|---------------|---------------|---------------|---------------|---------------|
+| R objects (global) | .RData, .rda | **base**              | **base**              | Présent |
+| R objects (unique) | .rds         | **base**              | **base**              | Présent |
+
+
+Il est possible de sauvegarder l'ensemble ou une partie des données
+définies dans la session de R. Cette sauvegarde se réalise avec les
+instructions `save()` pour un ensemble d'objets et `save.image()`pour
+sauvegarder tous les objets.
+
+La lecture se réalise par l'instruction `load()` et se réalise sous la
+forme d'un fichier binaire. Le format des fichiers est de type binaire
+et est pas conséquent un fichier propriétaire de R (compressé par R et
+lisible uniquement par R).
+
+Nous allons expérimenter en créant trois objets en plus des objets
+existants
+
+```{r RData,comment=">",echo=TRUE}
+ls()  # Objets présents
+a <- c("Université de Lille")
+b <- TRUE
+c <- c(10,20,30) # Création de 3 objets
+ls()    # Liste des objets
+```
+
+Ensuite nous sauvegardons uniquement les objets a,b et c par
+l'instruction `save()`. En ensuite nous sauvgardons l'ensemble des
+objets par l'instruction `save.image()`. Nous vérifions ensuite les
+tailles des fichiers respectifs par l'instruction `file.info()$size`.
+
+```{r ,comment=">",echo=TRUE,message=FALSE}
+save(a,b, file=here("data/Lille.RData"))           
+# Sauvegarde de deux objets sur un fichier .Rdata
+save.image(file=here("data/Lille_image.RData")) 
+# Sauvegarde totale sur un fichier .Rdata
+file.info(here("data/Lille.RData"))$size           
+# Vérification du fichier
+file.info(here("data/Lille_image.RData"))$size     
+# Vérification du fichier
+```
+
+On vérifie l'opération en retirant les objets et en les rechargeant
+ensuite.
+
+```{r ,comment=">",echo=TRUE,message=FALSE}
+rm(list = c("a","b","c"))               # Suppression de a et b          
+ls()                                    # Liste de objets vide
+load(file=here("data/Lille.RData")); ls()
+load(file=here("data/Lille_image.RData"));ls()
+```
+
+L'avantage unique de ce type de fichier est la capacité de sauvegarder
+dans un seul fichier l'ensemble des objets peut importe le type.
+
+#### Fichiers .rds
+
+Le type de fichier .rds est plus limité et seul un objet sera sauvegardé
+(dataframe, matrice, liste,...). L'écriture se réalise avec `saveRDS()`,
+l'extension du fichier est .rds. La lecture se réalise avec
+l'instruction `readRDS`.
+
+```{r binaire,comment=">",echo=TRUE}
+data(Wages,package="plm") 
+saveRDS(Wages,file=here("data/Wages_binaire.rds"))   # Ecriture fichier binaire
+file.info(here("data/Wages_binaire.rds"))$size       # Taille du fichier
+Wages_RDS <- readRDS(here("data/Wages_binaire.rds")) # Lecture du fichier
+all.equal(Wages_RDS,Wages)                         # Fichiers égaux ?
+rm(Wages_RDS)                                      # Effacement données
+```
+
+Nous disposeront également d'une possibilité plus simple de travailler
+si nous utilisont le package rio, il consiste qui a pour objet
+d’uniformiser la syntaxe pour les différents formats. Ainsi il suffira
+simplement d'utiliser la fonction rio::import(nom.extension) pour une
+importation et rio::export(nom.extension) pour une exportation.
+L'extension définira la méthode à utiliser. Le package choisit
+habituellement la fonction existante la plus performante pour réaliser
+la tâche.
+
+Par exemple, voici une importation et exportation du fichier Wages comme
+précedemment avec rio:
+
+```{r,comment=">",echo=TRUE}
+data(Wages,package="plm") 
+export(Wages,file=here("data/Wages_rio.rds"))   # Ecriture fichier compressé
+file.info(here("data/Wages_rio.rds"))$size      # Taille du fichier
+Wages_rio <- import(here("data/Wages_rio.rds")) # Lecture du fichier
+all.equal(Wages_rio,Wages)                      # Fichiers égaux ?
+rm(Wages_rio)                                   # Effacement données
+```
+
+### Fichiers compressés universels
+
+Dans le cadre de fichiers portables, nous allons nous intéressé à deux
+formats de fichiers de type colonnes, qui ont l'avantage d'être
+supportés par de nombreuses plateformes:
+
+-   Le format Feather qui va contenir soit des tables Arrow ou des data
+    frames de R ou Python. Son usage principal est de permettre un
+    stockage de données commun à Python et R.
+-   Le format Parquet qui est un format de type colonne principalement
+    utilisé pour les problème utilisant les "big data"
+
+https://www.cetic.be/Apache-Parquet-pour-le-stockage-de-donnees-volumineuses
+
+![Exemple de table
+classique](images/parquet-logique.png){fig-align="center"}
+
+La structure typique d'un fichier csv sera orientée vers les lignes:
+
+![Structure en lignes](/images/parquet-row.png){fig-align="center"}
+
+a structure typique d'un fichier csv sera orientée vers les colonnes:
+
+![Structure en colonnes](/images/parquet-col.png){fig-align="center"}
+
+| Format  | Extension | Importation (Package)                                                        | Exportation (Package)                                 | rio ? |
+|---------------|---------------|---------------|---------------|---------------|
+| Feather | .feather  | [**arrow**](https://arrow.apache.org/docs/1.0/r/reference/read_parquet.html) | [**arrow**](https://cran.r-project.org/package=arrow) | oui   |
+| Parquet | .parquet  | [**arrow**](https://cran.r-project.org/package=arrow)                        | [**arrow**](https://cran.r-project.org/package=arrow) | oui   |
+
+Lecture/Ecriture à partir du format Feather
+
+```{r ,comment=">",echo=TRUE}
+# Ecriture
+arrow::write_feather(Wages,here("data/Wages.feather")) # Ecriture des données (.feather)
+Wages_feather <- arrow::read_feather(file=here("data/Wages.feather"),
+                 col_select=c("exp","bluecol","sex","ed","lwage"))
+# Lecture des données dans r
+head(Wages_feather)   # Affichage des données
+```
+
+Le même exercice sera réalisé à partir de rio
+
+```{r feather,comment=">",echo=TRUE}
+rio::export(Wages,here("data/Wages_rio.feather"))
+Wages_rio <-  rio::import(here("data/Wages_rio.feather"))
+head(Wages_rio)
+str(Wages_rio,list.lenght=3)
+```
+
+Lecture/Ecriture à partir du format Parquet
+
+```{r ,exercise=TRUE,comment=">",echo=TRUE}
+# Ecriture
+arrow::write_parquet(Wages,here("data/Wages.parquet"))
+# Ecriture des données (.parquet)
+Wages_parquet <- arrow::read_parquet(
+  file=here("data/Wages.parquet"),
+  col_select=c("exp","bluecol","sex","ed","lwage"))
+# Lecture des données dans r
+head(Wages_parquet)  # Affichage des données
+```
+
+Le même exercice sera réalisé à partir de rio
+
+```{r wages_python_rio,exercise=TRUE,comment=">",echo=TRUE}
+rio::export(Wages,here("data/Wages_rio.parquet"))
+Wages_rio <-  rio::import(here("data/Wages_rio.parquet"),
+              col_select=c("exp","bluecol","sex","ed","lwage"))
+head(Wages_rio)
+str(Wages_rio,list.lenght=3)
+```
+
+### Fichiers textes
+
+Les fichiers textes sont simplement des caractères lisible avec les
+colonnes séparées par un délimiteur. Quatre options sont possibles selon
+le format du fichier à lire:
+
+| Types | décimal  | délimiteur |
+|:------|:--------:|-----------:|
+| delim | locale() |      delim |
+| csv   |    .     |          , |
+| csv2  |    ,     |          ; |
+| tsv   | locale() |        tab |
+
+De nombreuses librairies permettent de lire des données en format texte.
+
+Nous utilisons le fichier binaire ""bigfile.rds". Il s'agit d'un fichier
+réels de 17872 lignes et 373 variable qui contient du texte et des
+nombres. Le contenu de ce fichier sera explicité dans la partie
+consacrée à SAS (nyts).
+
+```{r Create_bigfile_,exercise=TRUE,comment=">",echo=TRUE}
+# Lecture sous dataframe du fichier 
+bf <- fake_ticket_client(vol=50000,n = 2000,seed = 2811,local = c( "fr_FR"))
+str(bf)
+length(bf)
+```
+
+On sauvegarde ce fichier sous forme d'un fichier compressé qui nous sera
+utile poure le suite.
+
+```{r bigfile_RDS,exercise=TRUE,comment=">",echo=TRUE}
+# Lecture sous dataframe du fichierdu fichier 
+save(bf,file=here("data/bf0.rds"))
+file.info(here("data/bf0.rds"))$size      
+```
+
+On remarque la taille fichier qui est de
+`file.info(here("data/bigfile.rds"))$size`. Nous allons écrire ce
+fichier sous la forme d'un fichier texte. Nous avons le choix entre des
+fonctions de base et des fonctions proposées par les packages
+
+| Package    | Extension | Importation | Exportation | rio ? |
+|------------|-----------|-------------|-------------|-------|
+| Base       | .csv      | read.csv2   | write.csv2  | Non   |
+| readr      | .csv      | read_csv2   | write_csv2  | Non   |
+| data.table | .csv      | fread       | fwrite      | Oui   |
+| vroom      | .csv      | read.csv2   | write.csv2  | Non   |
+
+Ecriture avec les fonctions de base de R soit `write.csv2` et
+`read.csv2`. Nous adoptons la version francophone de CSV soit CSV2 avec
+des colonnes séparées par des points virgules et le délimiteur décimal
+est la virgule
+
+```{r benchmark_write,exercise=TRUE,comment=">",echo=TRUE,warning=FALSE,cache=TRUE}
+benchmark(write.csv2=write.csv2(bf,here("data/bf1.csv")),
+          readr_write_csv=readr::write_csv2(bf,here("data/bf2.csv")),
+          data.table_fwrite=data.table::fwrite(bf,here("data/bf3.csv")),
+          rio_export=rio::export(bf,here("data/bf4.csv")),
+          vroom_vroom_write=vroom::vroom_write(bf,here("data/bf5.csv")),   
+          replications=1,
+              columns=c('test','user.self','sys.self', 'elapsed', 'replications'),
+              order=NULL
+)
+```
+
+```{r taille_csv,exercise=TRUE,comment=">",echo=TRUE,message=FALSE}
+fichiers_liste <- paste0("data/bf", 1:5, ".csv")
+bench_size <- data.frame(Fichiers=fichiers_liste)
+bench_size$Fonction <- c("base csv","readr","data.table","rio","vroom")
+bench_size$Taille <- file.size(bench_size$Fichiers)
+bench_size
+```
+
+La taille des fichiers est relativement similaire avec les différents
+formats de fichiers texte. Cependant le temps d'écriture et de lecture
+est fort variable. Nous utilisons la fonction `system.time()` pour
+mesurer le temps écoulé.
+
+Pour la lecture:
+
+les performance sont variables avec la fonction vroom() qui est toujours
+la plus rapide data.table est le plus rapide
+
+```{r benchmark_read,exercise=TRUE,comment=">",echo=TRUE,warning=FALSE,cache=TRUE}
+benchmark(read.csv2=read.csv2(here("data/bf1.csv")),
+          readr_read_csv=readr::read_csv(here("data/bf2.csv"),show_col_types = FALSE),
+          data.table_fread=data.table::fread(here("data/bf3.csv")),
+          rio_import=rio::import(here("data/bf4.csv")),
+          vroom_vroom=vroom::vroom(here("data/bf5.csv"),show_col_types = FALSE),        
+          replications=1,
+              columns=c('test','user.self','sys.self', 'elapsed', 'replications'),
+              order=NULL
+)
+
+```
+
+### Comparaison fichiers textes et compressés
+
+Nous allon comparer le format csv le plus performant (vromm) avec les
+formats compressés (rds, feather et parquet)
+
+```{r benchmark_2_write,exercise=TRUE,comment=">",echo=TRUE,warning=FALSE,cache=TRUE}
+benchmark(csv=vroom::vroom_write(bf,here("data/bf.csv")) ,
+          rds=export(bf,here("data/bf.rds")) ,
+          feather=export(bf,here("data/bf.feather")) ,
+          parquet=export(bf,here("data/bf.parquet")), 
+          replications=1,
+              columns=c('test','user.self','sys.self', 'elapsed', 'replications'),
+              order=NULL
+)
+```
+
+On constate en écriture que le fichier **rds** est le plus lent suivi du **csv**
+, les autres formats sont proches, le plus rapide est clairement **feather**
+
+```{r bench_size_c,exercise=TRUE,comment=">",echo=TRUE,mesage=FALSE}
+bench_size <- data.frame(Fichiers=c("data/bf.csv",
+                 "data/bf.feather",
+                 "data/bf.rds",
+                 "data/bf.parquet"))
+bench_size$Fonction <- c("vroom","arrow feather","rds","arrow parquet")
+bench_size$Taille <- file.size(bench_size$Fichiers)
+bench_size
+```
+
+On constate pour les tailles que le fichier **csv** est le plus imposant
+suivi du format **feather**, les autres format sont nettement plus compressés, le plus léger
+est **parquet**
+
+```{r benchmark_2_read,exercise=TRUE,comment=">",echo=TRUE,warning=FALSE,cache=TRUE}
+benchmark(vroom_csv=import(here("data/bf.csv")) ,
+          rds=import(here("data/bf.rds")) ,
+          feather=import(here("data/bf.feather")) ,
+          parquet=import(here("data/bf.parquet")), 
+          replications=1,
+              columns=c('test','user.self','sys.self', 'elapsed', 'replications'),
+              order=NULL
+)
+```
+
+On constate en lecture que le fichier **rds** est le plus lent suivi du **csv**
+, les autres formats sont les plus rapides.
+
+La différence entre le binaire et le csv sera la taille et la vitesse de
+lecture
+
+-   Si on travaille sur de petits fichiers cela n'a pas d'importance.
+
+-   Sur de gros fichiers, les avantages en terme de taille et de vitesse
+    sont importants pour les fichiers compressés. Les fichiers
+    universels sont plus efficaces en taille et en vitesse. Le format
+    feather est à privilégier en vitesse et le format parquet est
+    efficace en taille.
+
+### Fichiers de tableurs (.xls,.xlsx)
+
+Le format tableur est souvent utile pour transmettre ou recevoir des
+données. Deux formats sont possibles soit le format ancien (.xls) ou le
+format actual (.xlsx). Pour lire un format ancien, `readxl` est le plus
+adapté.. Si nous travaillons avec des formats plus modernes, le package
+`openxlsx` est mieux adapté et beaucoup plus flexible pour le formatage
+des données. Le package `rio` simplifie l'usage de ce package au prix
+d'une flexibilité plus faible
+
+| Format | Extension | Importation (Package)                                     | Exportation (Package)                                       | rio ? |
+|:--------------|:--------------|:--------------|:--------------|:--------------|
+| Excel  | .xls      | [**readxl**](https://cran.r-project.org/package=readxl)   | non                                                         | non   |
+| Excel  | .xlsx     | [**openxlsx**](https://cran.r-project.org/package=readxl) | [**openxlsx**](https://cran.r-project.org/package=openxlsx) | Oui   |
+
+Nous reprenons les données sur les salaires pour illustrer les
+opérations: L'objectif sera de séparer la base de données en deux
+groupes (hommes et femmes) et d'écrire les bases dans deux feuilles
+séparées d'un classeur
+
+On commence par séparer les deux groupes :
+
+```{r xlsx_data,exercise=TRUE,comment=">",echo=TRUE}
+data(Wages)
+Wages_m <- Wages[Wages$sex=="male",]            # Sélection des hommes
+Wages_f <- Wages[Wages$sex=="female",]          # Sélection des femmes
+```
+
+::: callout-important
+L'écriture `Wages[sex=="male",]` n'est pas valable car le nom `sex`
+n'est pas défini auparavant
+:::
+
+Par exemple nous écrivons dans le nouveau format avec
+
+```{r xlsx_write,exercise=TRUE,comment=">",echo=TRUE}
+# Exriture des données
+wb <- openxlsx::createWorkbook(title="Wages_split")             # Création du tableur vide 
+openxlsx::addWorksheet(wb,"Wage_M_s")
+openxlsx::addWorksheet(wb,"Wage_F_s")
+openxlsx::writeData(wb, "Wage_M_s", Wages_m,
+  rowNames = TRUE, startCol = "C", startRow = 3,
+  borders = "surrounding", borderColour = "black")
+openxlsx::writeData(wb, "Wage_F_s", Wages_f,
+  rowNames = TRUE, startCol = "C", startRow = 3,
+  borders = "surrounding", borderColour = "red")
+openxlsx::saveWorkbook(wb, file = "data/Wages.xlsx", 
+             overwrite = TRUE)
+# Lecture des données
+Wage_M_s <- openxlsx::readWorkbook(xlsxFile = here("data/Wages.xlsx"),sheet="Wage_M_s")
+Wage_F_s <- openxlsx::readWorkbook(xlsxFile = here("data/Wages.xlsx"),sheet="Wage_F_s")
+str(Wage_M_s)
+str(Wage_F_s)
+```
+
+La même opération avec `rio`, beaucoup plus compact mais moins flexible
+
+```{r xlsx_rio,exercise=TRUE,comment=">",echo=TRUE}
+# Ecriture
+rio::export(list(Wage_M_s = Wages_m, Wage_F_s = Wages_f), file="data/Wages.xlsx",overwrite=TRUE)
+# Lecture
+Wages_i <- rio::import_list(which=c("Wage_M_s","Wage_F_s"),file="data/Wages.xlsx")
+str(Wages_i$Wage_M_s)
+str(Wages_i$Wage_F_s)
+```
+
+Utilisation du format ancien
+
+Opération inverse de récupération des données:
+
+```{r xls_readxl,exercise=TRUE,comment=">",echo=TRUE}
+# Lecture 
+Wages_m <- readxl::read_xls(here("data/Wages.xls"),sheet="Wage_M_s")
+Wages_f <- readxl::read_xls(here("data/Wages.xls"),sheet="Wage_F_s")
+Wages_xls <- rbind(Wages_m,Wages_f)                 # recréation des données
+str(Wages)                                  # Vérification
+str(Wages_xls)                                  # Vérification
+```
+
+### Compatibilité SAS,SPSS et Stata
+
+Pour ces formats particuliers , nous avons deux options soit utiliser le
+package ***heaven*** soit le package ***rio***
+
+| Format            | Extension | Importation                                                          | Exportation                                                           | rio ? |
+|---------------|---------------|---------------|---------------|---------------|
+| SAS               | .sas7bdat | [**read_sas**](https://haven.tidyverse.org/reference/read_sas.html)  | [**write_sas**](https://haven.tidyverse.org/reference/write_sas.html) | Oui   |
+| SAS XPORT         | .xpt      | [**read_xpt**](https://haven.tidyverse.org/reference/read_xpt.html)  | [**write_xpt**](https://haven.tidyverse.org/reference/read_xpt.html)  | Oui   |
+| SPSS              | .sav      | [**read_sav**](https://haven.tidyverse.org/reference/read_spss.html) | [**write_sav**](https://haven.tidyverse.org/reference/read_spss.html) | Oui   |
+| SPSS (compressed) | .zsav     | [**read_sav**](https://haven.tidyverse.org/reference/read_sav.html)  | [**write_sav**](https://haven.tidyverse.org/reference/read_sav.html)  | Oui   |
+| SPSS Portable     | .por      | [**read_por**](https://haven.tidyverse.org/reference/read_spss.html) |                                                                       | Oui   |
+| Stata             | .dta      | [**read_dta**](https://haven.tidyverse.org/reference/read_dta.html)  | [**write_dta**](https://haven.tidyverse.org/reference/read_dta.html)  | Oui   |
+
+On dispose sur le www de nombreux fichiers au format sas qui comportent
+souvent des informations fort détaillées sur les données. Les fichiers
+sur les enquêtes ou sondages sont souvent de cette nature. Nous prenons
+comme exemple l'enquête nyts (National Youth Tabacco Survey) du CDC
+(Center for Diseases control and prevention) voir:
+https://www.cdc.gov/tobacco/data_statistics/surveys/nyts/index.html.
+Base de donnée de sondage typique avec 17872 personnes interrogées
+répondant à 373 questions.
+
+Les fichiers se composent de deux parties, une partie pour les données
+(extension .sas7bdat) et une partie pour le format (extension
+.sas7bcat). Le package \`haven' nous permet de lire facilement ces
+données et de récupérer l'information (certaines opérations
+complémentaires seront parfois nécessaires).
+
+```{r sas,exercise=TRUE,comment=">",echo=TRUE}
+nyts <- haven::read_sas(data_file    = here("data/nyts2017.sas7bdat"),
+                 catalog_file = here("data/formats.sas7bcat"))
+nyts[1:10,1:3]
+rio::export(nyts,here("data/nyts.rds"))
+```
+
+Il est possible d'utiliser `rio` pour lire les données (pas le
+catalogue)
+
+```{r sas_rio,exercise=TRUE,comment=">",echo=TRUE}
+nyts <- rio::import(file    = here("data/nyts2017.sas7bdat"))
+nyts[1:10,1:3]
+```
+
+<!-- ### Exercice -->
+
+<!-- En utilisant le set de données ”Males” du package plm: -->
+
+<!-- - Créez un fichier binaire contenant tous les travailleurs mariés de 85 et 86. -->
+
+<!-- - Créez une feuille Excel avec tous les travailleurs affiliés à un syndicat (union). -->
+
+<!-- Lisez les fichiers ”fichier1.txt" à fichier4.txt” dans R. -->
